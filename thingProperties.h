@@ -3,14 +3,16 @@
 #include <ArduinoIoTCloud.h>
 #include <Arduino_ConnectionHandler.h>
 
+void onManualShadesChange();
+void onManualControlChange();
 
 int manualShades;
 bool manualControl;
 
 void initProperties(){
 
-  ArduinoCloud.addProperty(manualShades, READ, ON_CHANGE, NULL);
-  ArduinoCloud.addProperty(manualControl, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(manualShades, READWRITE, ON_CHANGE, onManualShadesChange);
+  ArduinoCloud.addProperty(manualControl, READWRITE, ON_CHANGE, onManualControlChange);
 
 }
 
