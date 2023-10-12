@@ -3,6 +3,12 @@
 #include <ArduinoIoTCloud.h>
 #include <Arduino_ConnectionHandler.h>
 
+const char DEVICE_LOGIN_NAME[]  = "2f8f956b-e75e-4ca1-bb64-39bfcc653f8e";
+
+const char SSID[]               = "secret";    // Network SSID (name)
+const char PASS[]               = "secret";    // Network password (use for WPA, or use as key for WEP)
+const char DEVICE_KEY[]  = "Secret";    // Secret device password
+
 void onManualShadesChange();
 void onManualControlChange();
 
@@ -11,18 +17,11 @@ bool manualControl;
 
 void initProperties(){
 
+  ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
+  ArduinoCloud.setSecretDeviceKey(DEVICE_KEY);
   ArduinoCloud.addProperty(manualShades, READWRITE, ON_CHANGE, onManualShadesChange);
   ArduinoCloud.addProperty(manualControl, READWRITE, ON_CHANGE, onManualControlChange);
 
 }
 
-////////////////////////////ATTENTION!!!////////////////////////////////
-// ATTENTION: No device is currently associated to this Thing,        //
-// hence the Connection Handler code could not be generated           //
-// Please associate an existing or new device or manually create your //
-// instance of Connection Handler                                     //
-// Eg.                                                                // 
-// WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);   //
-////////////////////////////////////////////////////////////////////////
-
-#error "No device is currently associated to this Thing, hence the Connection Handler code could not be generated"
+WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASS);
