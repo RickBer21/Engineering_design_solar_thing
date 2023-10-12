@@ -2,17 +2,23 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include "thingProperties.h"
+
 //the pins of the four solar panels
-#define solarPanelUR A0;
-#define solarPanelDR A1;
-#define solarPanelUL A2;
-#define solarPanelDL A3;
+#define solarPanelUR "A0";
+#define solarPanelDR "A1";
+#define solarPanelUL "A2";
+#define solarPanelDL "A3";
+
+Servo servoRight;
+Servo servoLeft;
+
+// rotationLevel defined globally because it's easier
+int rotationLevel = 0;
 
 // Setup code, will run only once
 void setup() {
 
-  // start Serial monitor and wait for it to finish[delay is to give the serial monitor time to start]
-  // serial monitor can later be used to debug the code
+  // start Serial monitor [delay is to give the serial monitor time to start]
   Serial.begin(9600);
   delay(1500);
 
@@ -23,43 +29,69 @@ void setup() {
   ArduinoCloud.printDebugInfo();
 
   // connect the servo motors
-  ServoRight.attach(8);
-  ServoLeft.attach(9);
+  servoRight.attach(8);
+  servoLeft.attach(9);
   //setting servos to default positions [currently middle, can be changed]
-  ServoRight.write(90);
-  ServoLeft.write(90);
+  servoRight.write(90);
+  servoLeft.write(90);
 
-  // define some key variables
-  int solarDataUR = 0;
-  int solarDataDR = 0;
-  int solarDataUL = 0;
-  int solarDataDL = 0;
-  int rotationLevel = 0;
+
 }
-// all of the functions below [except the loop function] are for the loop function to call
+
 // these need to be defined above the loop function itself as to avoid errors
-void solarData() {
-  /*
-   all of these will be a value from 0-1023, with 0 being no volatge at pin and 1023 being max [5V].
-   prefferably we will not reach anything over 1023, or something close to it,
-   as anything above 1023 could burn the arduino.
-  */
-  solarDataUR = analogRead(solarPanelUR);
-  solarDataDR = analogRead(solarPanelDR);
-  solarDataUL = analogRead(solarPanelUL);
-  solarDataDL = analogRead(solarPanelDL);
-}
 
-void adjustLouvers() {
+void adjustLouvers() { //called by loop function 
   //rotating the servos[assuming they point towards the same direction]
-  ServoRight.write(rotationLevel);
-  ServoLeft.write(rotationLevel);
+  servoRight.write(rotationLevel);
+  servoLeft.write(rotationLevel);
 }
 
+/*
+  Since ManualControl is READ_WRITE variable, onManualControlChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onManualControlChange()  {
+  // Add your code here to act upon ManualControl change
+  // nothing needs to be inside the function, maybe a jump to the start of the loop.
+  // the funtion itself just needs to be here for the code to work :)
+}
+
+/*
+  Since ManualShades is READ_WRITE variable, onManualShadesChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onManualShadesChange()  {
+  if(manualControl==true){
+  rotationLevel = manualShades;
+  }
+}
 
 void loop() {
+
   // First, check if anything happened in app
   ArduinoCloud.update();
+
+    //get battery voltage
+    /*
+    The code to measure the battery level using the internal reference did not work.
+    Now my idea is to add an external voltage divider connected to the arduino to
+    measure the voltage at the A6 pin. the voltage divider is needed because
+    we are powering the arduino with more then 5V, which the arduino itself cannot
+    handle checking. we need to lower the voltage from the batteries by a factor
+    of 4 [or 5 to be safe]. after checking on the pin we can then multiply the 
+    result back up by 4 [or 5] to get the battery voltage.
+    */
+  int analogBatteryLevel = analogRead(A5);
+  //calculate voltage from analogpin and multiply by 4 to get voltage before divider
+  float batteryVoltage = (analogBatteryLevel/1023)*5*4;
+  /*
+    battery level can be calculated when i have specifics on battery.
+    the voltage a li-ion battery provides lowers as the charge level lowers.
+    I would need to know how much the voltage drops over time to get the charge level
+    for now I will leave it at the voltage
+  */
+  delay(1000);
+
   // then check if the user has taken control
   if (manualControl = true) {
     /*
@@ -67,14 +99,20 @@ void loop() {
       Since the user enters the level they want the louvers to be at,
       only adjusting is enough
     */
-    rotationLevel = manualShades;
+    
     adjustLouvers();
-  } else {
+  } else {    //if not manual
     /*
       if the user has not taken manual control, then we are in the automatic mode
-      here we first gather the data of the solar panels
+      here we first gather the data of the solar panels.
+      all of these will be a value from 0-1023, with 0 being no volatge at pin and 1023 being max [5V].
+      prefferably we will not reach anything over 1023, or something close to it,
+      as anything above 1023 could burn the arduino.
     */
-    solarData();
+    int solarDataUR = analogRead(A0);
+    int solarDataDR = analogRead(A1);
+    int solarDataUL = analogRead(A2);
+    int solarDataDL = analogRead(A3);
 
     //Then there are some calculations
     /*
@@ -83,8 +121,8 @@ void loop() {
     because the first calculation to get R1 is a ratio calculation, the analogRead()
     values do not need to be altered
   */
-    float ratioRight = solarDataUR / (solarDataUR + solardataDR);
-    float ratioLeft = solarDataUL / (solarDataUL + solardataDL);
+    float ratioRight = solarDataUR / (solarDataUR + solarDataDR);
+    float ratioLeft = solarDataUL / (solarDataUL + solarDataDL);
     /*
     Then we calculate the angle.
     for PI the predefined number is used which is in the arduino.h library.
@@ -101,11 +139,13 @@ void loop() {
      it will need to be rounded first to the nearest interger.
      In addition to this, the angle of the sun [following our calculations] can only be between 0 and 90
      this means that we can directly write this to the rotationLevel variable
+
   */
     rotationLevel = round(angleSun);
     //Then, adjust the louvers
     adjustLouvers();
     //wait one minute before starting again to save battery power[Can be altered if need be]
-    delay(60000);
+    //[lowered because verification of code took long]
+    delay(600);
   }
 }
