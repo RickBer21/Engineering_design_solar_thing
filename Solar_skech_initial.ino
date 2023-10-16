@@ -30,10 +30,10 @@ void setup() {
 
   // connect the servo motors
   servoRight.attach(8);
-  servoLeft.attach(9);
+  
   //setting servos to default positions [currently middle, can be changed]
   servoRight.write(90);
-  servoLeft.write(90);
+
 
 
 }
@@ -43,7 +43,7 @@ void setup() {
 void adjustLouvers() { //called by loop function 
   //rotating the servos[assuming they point towards the same direction]
   servoRight.write(rotationLevel);
-  servoLeft.write(rotationLevel);
+  
 }
 
 /*
@@ -54,15 +54,18 @@ void onManualControlChange()  {
   // Add your code here to act upon ManualControl change
   // nothing needs to be inside the function, maybe a jump to the start of the loop.
   // the funtion itself just needs to be here for the code to work :)
+  delay(1000);
 }
+void onDataChange(){
 
+}
 /*
   Since ManualShades is READ_WRITE variable, onManualShadesChange() is
   executed every time a new value is received from IoT Cloud.
 */
 void onManualShadesChange()  {
   if(manualControl==true){
-  rotationLevel = manualShades;
+  rotationLevel = manualShades*2;
   }
 }
 
@@ -70,7 +73,7 @@ void loop() {
 
   // First, check if anything happened in app
   ArduinoCloud.update();
-
+  Serial.println(manualControl);
     //get battery voltage
     /*
     The code to measure the battery level using the internal reference did not work.
@@ -93,7 +96,7 @@ void loop() {
   delay(1000);
 
   // then check if the user has taken control
-  if (manualControl = true) {
+  if (manualControl == true) {
     /*
       Here, the user has taken manual control over the blinds.
       Since the user enters the level they want the louvers to be at,
@@ -109,10 +112,14 @@ void loop() {
       prefferably we will not reach anything over 1023, or something close to it,
       as anything above 1023 could burn the arduino.
     */
-    int solarDataUR = analogRead(A0);
-    int solarDataDR = analogRead(A1);
-    int solarDataUL = analogRead(A2);
-    int solarDataDL = analogRead(A3);
+    float solarDataU = analogRead(A0)-100;
+    float solarDataD = analogRead(A1)-100;
+    Serial.print("Upper panel:");
+    Serial.println(solarDataU);
+    Serial.print("Lower panel:");
+    Serial.println(solarDataD);
+    
+
 
     //Then there are some calculations
     /*
@@ -121,19 +128,17 @@ void loop() {
     because the first calculation to get R1 is a ratio calculation, the analogRead()
     values do not need to be altered
   */
-    float ratioRight = solarDataUR / (solarDataUR + solarDataDR);
-    float ratioLeft = solarDataUL / (solarDataUL + solarDataDL);
+    float ratio = solarDataU/(solarDataU+solarDataD);
+    Serial.print("ratio: ");
+    Serial.println(ratio);
+
     /*
     Then we calculate the angle.
     for PI the predefined number is used which is in the arduino.h library.
   */
-    float angleRight = (PI * ratioRight) / 2;
-    float angleLeft = (PI * ratioLeft) / 2;
-    /*
-    As a final calculation, I chose to take the average of 
-    the two sides to get to one average for the entire window
-  */
-    float angleSun = (angleRight + angleLeft) / 2;
+    float angleSun = ((PI * ratio) / 4)*RAD_TO_DEG;
+    Serial.print("angle: ");
+    Serial.println(angleSun);
     /*
      since the angle we get is a float value and the write function only accepts int,
      it will need to be rounded first to the nearest interger.
