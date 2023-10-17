@@ -136,7 +136,7 @@ void loop() {
     Then we calculate the angle.
     for PI the predefined number is used which is in the arduino.h library.
   */
-    float angleSun = ((PI * ratio) / 4)*RAD_TO_DEG;
+    float angleSun = ((PI * ratio) / 2)*RAD_TO_DEG;
     Serial.print("angle: ");
     Serial.println(angleSun);
     /*
